@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}ReconScope – Home{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="rs-card text-center p-5">
+      <h1 class="rs-title">Recon<span class="rs-accent">Scope</span></h1>
+      <p class="text-secondary mb-4">Footprinting &amp; Reconnaissance Dashboard</p>
+
+      <form method="POST" action="{{ url_for('scan') }}" id="scan-form" novalidate>
+        <div class="input-group input-group-lg mb-3">
+          <span class="input-group-text">🎯</span>
+          <input type="text" name="domain" id="domain-input" class="form-control"
+                 placeholder="example.com" maxlength="253" required autocomplete="off">
+          <button class="btn rs-btn" type="submit">Open Dashboard</button>
+        </div>
+        <div class="form-text text-secondary">Enter a domain you own or are authorized to assess.</div>
+      </form>
+    </div>
+
+    <div class="row g-3 mt-2">
+      <div class="col-md-6">
+        <div class="rs-card p-4 h-100">
+          <span class="badge rs-badge-passive mb-2">PASSIVE</span>
+          <p class="mb-0 small text-secondary">
+            Uses publicly available or indexed information (WHOIS, DNS, technology
+            profiling, Shodan, Wayback). Does not send scanning traffic to the target.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="rs-card p-4 h-100">
+          <span class="badge rs-badge-active mb-2">ACTIVE – AUTHORIZATION REQUIRED</span>
+          <p class="mb-0 small text-secondary">
+            Directly interacts with the target (Nmap). Runs only after you explicitly
+            confirm you are authorized to scan it.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-center text-secondary small mt-4">
+      Purpose: to collect, organize, correlate, and visualize reconnaissance information
+      about an authorized target using multiple footprinting techniques.
+    </p>
+  </div>
+</div>
+{% endblock %}

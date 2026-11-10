@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – {{ target.domain }}{% endblock %}
+{% block content %}
+
+{# Reusable status badge macro #}
+{% macro status_badge(status) -%}
+  {% if status == 'completed' %}<span class="badge rs-status rs-completed">🟢 Completed</span>
+  {% elif status == 'warning' %}<span class="badge rs-status rs-warning-b">🟡 Warning</span>
+  {% elif status == 'error' %}<span class="badge rs-status rs-error">🔴 Error</span>
+  {% else %}<span class="badge rs-status rs-pending">⚪ Not executed</span>{% endif %}
+{%- endmacro %}
+
+<!-- Workflow steps -->
+<div class="rs-card p-3 mb-4">
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    {% set steps = ['① Validate', '② Passive recon', '③ Active (authorized)', '④ Report'] %}
+    {% for label in steps %}
+      {% set n = loop.index %}
+      <span class="badge rs-status {% if n < step %}rs-completed{% elif n == step %}rs-warning-b{% else %}rs-pending{% endif %}">
+        {{ label }}
+      </span>
+      {% if not loop.last %}<span class="text-secondary">→</span>{% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Target Information -->
+<div class="rs-card p-4 mb-4">
+  <h5 class="rs-section">Target Information</h5>
+  <div class="row g-3">
+    <div class="col-md-3"><div class="rs-label">Domain</div><div class="rs-value">{{ target.domain }}</div></div>
+    <div class="col-md-3"><div class="rs-label">IP Address</div><div class="rs-value">{{ target.ip }}</div></div>
+    <div class="col-md-3"><div class="rs-label">Scan Timestamp</div><div class="rs-value">{{ target.timestamp }}</div></div>
+    <div class="col-md-3"><div class="rs-label">Scan Status</div><div class="rs-value">{{ target.status }}</div></div>
+  </div>
+  <div class="progress mt-3 rs-progress"><div class="progress-bar" style="width: {{ progress }}%">{{ progress }}%</div></div>
+</div>
+
+<!-- Run passive recon -->
+<form method="POST" action="{{ url_for('run_recon', scan_id=target.scan_id) }}" class="mb-4">
+  <button type="submit" class="btn rs-btn btn-lg">▶ Run Passive Recon</button>
+  <span class="text-secondary small ms-2">Runs WHOIS, DNS, Technology, Shodan and Wayback. Active Nmap scanning is separate, further down.</span>
+</form>
+
+<!-- Module status summary -->
+<div class="rs-card p-4 mb-4">
+  <h5 class="rs-section">Module Status</h5>
+  <div class="table-responsive">
+    <table class="table rs-table align-middle mb-0">
+      <thead><tr><th>Module</th><th>Type</th><th>Status</th><th>Message</th></tr></thead>
+      <tbody>
+      {% for m in modules %}
+        <tr>
+          <td>{{ m.name }}</td>
+          <td>
+            {% if m.type == 'passive' %}<span class="badge rs-badge-passive">PASSIVE</span>
+            {% else %}<span class="badge rs-badge-active">ACTIVE – AUTHORIZATION REQUIRED</span>{% endif %}
+          </td>
+          <td>{{ status_badge(m.status) }}</td>
+          <td class="text-secondary">{{ m.message }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Visual summary -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="rs-card p-3">
+      <div class="d-flex flex-wrap gap-3">
+        <span class="badge rs-status rs-completed">🟢 Completed: {{ status_counts.completed }}</span>
+        <span class="badge rs-status rs-warning-b">🟡 Warning: {{ status_counts.warning }}</span>
+        <span class="badge rs-status rs-error">🔴 Error: {{ status_counts.error }}</span>
+        <span class="badge rs-status rs-pending">⚪ Not executed: {{ status_counts.pending }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4"><div class="rs-card p-3 h-100">
+    <h6 class="rs-section">DNS records by type</h6>
+    <canvas id="chart-dns" height="200"></canvas>
+  </div></div>
+  <div class="col-md-4"><div class="rs-card p-3 h-100">
+    <h6 class="rs-section">Technologies by category</h6>
+    <canvas id="chart-tech" height="200"></canvas>
+  </div></div>
+  <div class="col-md-4"><div class="rs-card p-3 h-100">
+    <h6 class="rs-section">Wayback HTTP status codes</h6>
+    <canvas id="chart-wayback" height="200"></canvas>
+  </div></div>
+</div>
+<script id="chart-data" type="application/json">{{ chart_data|tojson }}</script>
+
+<!-- Passive reconnaissance -->
+<div class="d-flex align-items-center gap-2 mb-2">
+  <h4 class="mb-0">Passive Reconnaissance</h4><span class="badge rs-badge-passive">PASSIVE</span>
+</div>
+<p class="text-secondary small">Uses publicly available or indexed information without directly scanning the target.</p>
+
+<div class="row g-3 mb-4">
+
+  <!-- WHOIS -->
+  <div class="col-md-6">
+    <div class="rs-card p-4 h-100">
+      <h5 class="rs-section">WHOIS</h5>
+      {% if whois %}
+      <table class="table rs-table mb-0">
+        <tbody>
+        {% for field, value in whois.items() %}
+          <tr><th style="width:35%">{{ field }}</th><td class="rs-value">{{ value }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-secondary mb-0">No WHOIS data. Run passive recon, or the registry returned nothing.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- DNS -->
+  <div class="col-md-6">
+    <div class="rs-card p-4 h-100">
+      <h5 class="rs-section">DNS</h5>
+      {% if dns %}
+      <table class="table rs-table mb-0">
+        <tbody>
+        {% for rtype, values in dns.items() %}
+          <tr><th style="width:20%">{{ rtype }}</th>
+              <td class="rs-value">{% for v in values %}<div>{{ v }}</div>{% endfor %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-secondary mb-0">No DNS data. Run passive recon first.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Technology -->
+  <div class="col-md-6">
+    <div class="rs-card p-4 h-100">
+      <h5 class="rs-section">Technology Profile</h5>
+      {% if technologies %}
+      <table class="table rs-table mb-0">
+        <thead><tr><th>Technology</th><th>Category</th><th>Version</th></tr></thead>
+        <tbody>
+        {% for t in technologies %}
+          <tr>
+            <td class="rs-value">{{ t.technology }}</td>
+            <td>{{ t.category }}</td>
+            <td class="rs-value">{{ t.version or '—' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-secondary mb-0">No technologies detected, or not run yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Wayback -->
+  <div class="col-md-6">
+    <div class="rs-card p-4 h-100">
+      <h5 class="rs-section">Wayback Machine</h5>
+      {% if wayback %}
+      <div class="rs-label mb-2">Snapshots shown: {{ wayback|length }} (most recent, one per day)</div>
+      <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+        <table class="table rs-table mb-0">
+          <thead><tr><th>Timestamp</th><th>HTTP</th><th>Archived URL</th></tr></thead>
+          <tbody>
+          {% for w in wayback %}
+            <tr>
+              <td class="rs-value">{{ w.timestamp }}</td>
+              <td>{{ w.status_code }}</td>
+              <td><a href="{{ w.url }}" target="_blank" rel="noopener noreferrer" class="link-info">Open snapshot</a></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-secondary mb-0">No archived snapshots, or not run yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Shodan -->
+  <div class="col-12">
+    <div class="rs-card p-4">
+      <h5 class="rs-section">Shodan</h5>
+      <div class="rs-note mb-3">Publicly Indexed Information – Not Proof of Vulnerability</div>
+      {% if shodan_meta and (shodan_meta.org or shodan_meta.isp or shodan_meta.country) %}
+      <div class="row g-3 mb-3">
+        <div class="col-md-3"><div class="rs-label">IP</div><div class="rs-value">{{ shodan_meta.ip }}</div></div>
+        <div class="col-md-3"><div class="rs-label">Organization</div><div class="rs-value">{{ shodan_meta.org or '—' }}</div></div>
+        <div class="col-md-3"><div class="rs-label">ISP</div><div class="rs-value">{{ shodan_meta.isp or '—' }}</div></div>
+        <div class="col-md-3"><div class="rs-label">Country</div><div class="rs-value">{{ shodan_meta.country or '—' }}</div></div>
+      </div>
+      {% endif %}
+      {% if shodan %}
+      <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+        <table class="table rs-table mb-0">
+          <thead><tr><th>IP</th><th>Port</th><th>Protocol</th><th>Service / Product</th><th>Version</th><th>Banner (truncated)</th></tr></thead>
+          <tbody>
+          {% for s in shodan %}
+            <tr>
+              <td class="rs-value">{{ s.ip }}</td>
+              <td class="rs-value">{{ s.port }}</td>
+              <td>{{ s.protocol }}</td>
+              <td>{{ s.service }}</td>
+              <td class="rs-value">{{ s.version or '—' }}</td>
+              <td class="rs-value small" style="max-width:320px; word-break:break-all;">{{ s.banner or '—' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-secondary mb-0">No Shodan data. Check the Module Status message above for the reason (API key, plan limit or no results).</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Active reconnaissance -->
+<div class="d-flex align-items-center gap-2 mb-2">
+  <h4 class="mb-0">Active Reconnaissance</h4><span class="badge rs-badge-active">ACTIVE – AUTHORIZATION REQUIRED</span>
+</div>
+<p class="text-secondary small">Directly interacts with the target by sending network traffic to it. Requires explicit confirmation of authorization.</p>
+
+<div class="rs-card p-4 mb-4">
+  <h5 class="rs-section">Nmap</h5>
+
+  <form method="POST" action="{{ url_for('run_nmap_scan', scan_id=target.scan_id) }}">
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="checkbox" id="nmap-confirm" name="confirm_auth" value="yes" required>
+      <label class="form-check-label" for="nmap-confirm">I confirm that I am authorized to scan this target.</label>
+    </div>
+    <div class="text-secondary small mb-3">
+      Fixed profile: TCP connect scan of 25 common service ports with service/version detection. No scripts, no exploitation.
+      May take up to two minutes.
+    </div>
+    {% if passive_done %}
+      <button type="submit" class="btn rs-btn-danger">Run Nmap Scan</button>
+    {% else %}
+      <button type="button" class="btn rs-btn-danger" disabled>Run passive recon first</button>
+    {% endif %}
+  </form>
+
+  <hr style="border-color: var(--border);">
+
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <span class="rs-label mb-0">Module status</span>
+    {{ status_badge(nmap_info.status) }}
+    <span class="text-secondary">{{ nmap_info.message }}</span>
+  </div>
+
+  {% if nmap_services %}
+  <div class="table-responsive">
+    <table class="table rs-table mb-0">
+      <thead><tr><th>IP</th><th>Port</th><th>Protocol</th><th>Service</th><th>Version</th></tr></thead>
+      <tbody>
+      {% for s in nmap_services %}
+        <tr>
+          <td class="rs-value">{{ s.ip }}</td>
+          <td class="rs-value">{{ s.port }}</td>
+          <td>{{ s.protocol }}</td>
+          <td>{{ s.service }}</td>
+          <td class="rs-value">{{ s.version or '—' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-secondary mb-0">No Nmap results yet.</p>
+  {% endif %}
+</div>
+
+<!-- Action log -->
+<div class="rs-card p-4 mb-4">
+  <h5 class="rs-section">Action Log</h5>
+  {% if action_log %}
+  <table class="table rs-table mb-0">
+    <thead><tr><th style="width:200px">Timestamp</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for a in action_log %}
+      <tr><td class="rs-value">{{ a.timestamp }}</td><td>{{ a.action }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-secondary mb-0">No actions recorded yet.</p>
+  {% endif %}
+</div>
+
+<div class="d-flex gap-2">
+  <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">← New Target</a>
+  <a href="{{ url_for('report', scan_id=target.scan_id) }}" class="btn btn-outline-info">View Report</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}

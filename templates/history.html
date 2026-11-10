@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}ReconScope – Scan History{% endblock %}
+{% block content %}
+<div class="rs-card p-4">
+  <h5 class="rs-section">Scan History</h5>
+  {% if scans %}
+  <div class="table-responsive">
+    <table class="table rs-table align-middle mb-0">
+      <thead><tr><th>ID</th><th>Domain</th><th>Date</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for s in scans %}
+        <tr>
+          <td>{{ s.id }}</td>
+          <td class="rs-value">{{ s.domain }}</td>
+          <td>{{ s.scan_date }}</td>
+          <td>{{ s.status|capitalize }}</td>
+          <td><a class="btn btn-sm btn-outline-info" href="{{ url_for('dashboard', scan_id=s.id) }}">Open</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-secondary mb-0">No scans yet. Start one from the home page.</p>
+  {% endif %}
+</div>
+{% endblock %}

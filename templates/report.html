@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ReconScope Report – {{ target.domain }}</title>
+  <style>
+    body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #1b2430; background: #f4f6f9; margin: 0; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 24px; }
+    header { background: #0b0f17; color: #fff; padding: 20px 24px; border-radius: 8px; }
+    header h1 { margin: 0 0 4px; font-size: 1.6rem; } header h1 span { color: #00e0a4; }
+    header p { margin: 0; color: #9aa7bd; font-size: .9rem; }
+    .warn { background: #fff4d6; border: 1px solid #e6c768; padding: 10px 14px; border-radius: 6px; margin: 16px 0; font-size: .9rem; }
+    section { background: #fff; border: 1px solid #dde3ec; border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+    h2 { font-size: 1.05rem; margin: 0 0 10px; color: #0b6b53; text-transform: uppercase; letter-spacing: .6px; }
+    table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e8ecf2; vertical-align: top; word-break: break-word; }
+    th { color: #5b6878; font-weight: 600; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .75rem; font-weight: 600; }
+    .passive { background: #dbeeff; color: #0b4d80; } .active { background: #fde0e3; color: #8a1c2a; }
+    .ok { color: #0b7a4f; } .warnc { color: #9a7400; } .err { color: #b3261e; } .pend { color: #6b7686; }
+    .statement { background: #e9f8f1; border-left: 4px solid #00a67a; padding: 10px 14px; font-weight: 600; }
+    .note { font-size: .85rem; color: #5b6878; }
+    ul { margin: 6px 0 0 18px; padding: 0; }
+    .toolbar { margin: 12px 0; display: flex; gap: 8px; }
+    .btn { display: inline-block; padding: 8px 14px; border-radius: 6px; border: 1px solid #0b6b53; background: #fff; color: #0b6b53; text-decoration: none; font-size: .9rem; cursor: pointer; }
+    @media print { body { background: #fff; } .toolbar, nav, footer { display: none !important; } section { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Recon<span>Scope</span> – Reconnaissance Report</h1>
+    <p>Footprinting &amp; Reconnaissance Dashboard · academic project</p>
+  </header>
+
+  {% if not standalone %}
+  <div class="toolbar">
+    <a class="btn" href="{{ url_for('report_download', scan_id=request.view_args.scan_id) }}">⬇ Download HTML report</a>
+    <button class="btn" onclick="window.print()">🖨 Print / Save as PDF</button>
+    <a class="btn" href="{{ url_for('dashboard', scan_id=request.view_args.scan_id) }}">← Back to dashboard</a>
+  </div>
+  {% endif %}
+
+  <div class="warn">⚠ Use this application only on systems you own or have explicit permission to assess.</div>
+
+  <section>
+    <h2>Target</h2>
+    <table>
+      <tr><th style="width:30%">Domain</th><td>{{ target.domain }}</td></tr>
+      <tr><th>IP address</th><td>{{ target.ip }}</td></tr>
+      <tr><th>Scan started</th><td>{{ target.timestamp }}</td></tr>
+      <tr><th>Report generated</th><td>{{ target.generated }}</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Passive vs active classification</h2>
+    <p class="note">Passive reconnaissance uses publicly available or indexed information. Active reconnaissance directly interacts with the target and requires authorization.</p>
+    <table>
+      <thead><tr><th>Module</th><th>Type</th><th>Status</th><th>Message</th></tr></thead>
+      <tbody>
+      {% for m in modules %}
+        <tr>
+          <td>{{ m.name }}</td>
+          <td>{% if m.type == 'passive' %}<span class="tag passive">PASSIVE</span>{% else %}<span class="tag active">ACTIVE – AUTHORIZATION REQUIRED</span>{% endif %}</td>
+          <td>{% if m.status == 'completed' %}<span class="ok">✓ Completed</span>{% elif m.status == 'warning' %}<span class="warnc">⚠ Warning</span>{% elif m.status == 'error' %}<span class="err">✗ Error</span>{% else %}<span class="pend">○ Not executed</span>{% endif %}</td>
+          <td>{{ m.message }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>WHOIS findings <span class="tag passive">PASSIVE</span></h2>
+    {% if whois %}<table>{% for f, v in whois.items() %}<tr><th style="width:30%">{{ f }}</th><td>{{ v }}</td></tr>{% endfor %}</table>
+    {% else %}<p class="note">No WHOIS data collected.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>DNS findings <span class="tag passive">PASSIVE</span></h2>
+    {% if dns %}<table>{% for t, vals in dns.items() %}<tr><th style="width:15%">{{ t }}</th><td>{% for v in vals %}<div>{{ v }}</div>{% endfor %}</td></tr>{% endfor %}</table>
+    {% else %}<p class="note">No DNS data collected.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Technology findings <span class="tag passive">PASSIVE</span></h2>
+    {% if technologies %}
+    <table><thead><tr><th>Technology</th><th>Category</th><th>Version</th></tr></thead><tbody>
+    {% for t in technologies %}<tr><td>{{ t.technology }}</td><td>{{ t.category }}</td><td>{{ t.version or '—' }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="note">No technologies identified.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Shodan findings <span class="tag passive">PASSIVE</span></h2>
+    <p class="statement" style="font-weight:500">Publicly Indexed Information – Not Proof of Vulnerability</p>
+    {% if shodan_meta and (shodan_meta.org or shodan_meta.isp or shodan_meta.country) %}
+    <p class="note">Organization: {{ shodan_meta.org or '—' }} · ISP: {{ shodan_meta.isp or '—' }} · Country: {{ shodan_meta.country or '—' }}</p>
+    {% endif %}
+    {% if shodan %}
+    <table><thead><tr><th>IP</th><th>Port</th><th>Protocol</th><th>Service</th><th>Version</th></tr></thead><tbody>
+    {% for s in shodan %}<tr><td>{{ s.ip }}</td><td>{{ s.port }}</td><td>{{ s.protocol }}</td><td>{{ s.service }}</td><td>{{ s.version or '—' }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="note">No Shodan data collected.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Wayback findings <span class="tag passive">PASSIVE</span></h2>
+    {% if wayback %}
+    <p class="note">{{ wayback|length }} snapshots retrieved (most recent, one per day).</p>
+    <table><thead><tr><th>Timestamp</th><th>HTTP</th><th>Archived URL</th></tr></thead><tbody>
+    {% for w in wayback %}<tr><td>{{ w.timestamp }}</td><td>{{ w.status_code }}</td><td>{{ w.url }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="note">No archived snapshots retrieved.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Nmap findings <span class="tag active">ACTIVE – AUTHORIZATION REQUIRED</span></h2>
+    {% if nmap_services %}
+    <table><thead><tr><th>IP</th><th>Port</th><th>Protocol</th><th>Service</th><th>Version</th></tr></thead><tbody>
+    {% for s in nmap_services %}<tr><td>{{ s.ip }}</td><td>{{ s.port }}</td><td>{{ s.protocol }}</td><td>{{ s.service }}</td><td>{{ s.version or '—' }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="note">No active scan results for this target.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Summary of observations</h2>
+    <ul>{% for o in observations %}<li>{{ o }}</li>{% endfor %}</ul>
+    <p class="statement" style="margin-top:14px">Reconnaissance observations are not, by themselves, evidence of a security vulnerability.</p>
+  </section>
+
+  <section>
+    <h2>Action log</h2>
+    {% if action_log %}
+    <table><thead><tr><th style="width:190px">Timestamp</th><th>Action</th></tr></thead><tbody>
+    {% for a in action_log %}<tr><td>{{ a.timestamp }}</td><td>{{ a.action }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="note">No actions recorded.</p>{% endif %}
+  </section>
+
+  <p class="note">Purpose: to collect, organize, correlate, and visualize reconnaissance information about an authorized target using multiple footprinting techniques.</p>
+</div>
+</body>
+</html>
