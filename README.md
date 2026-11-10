@@ -1,111 +1,266 @@
-# ReconScope – Footprinting and Reconnaissance Dashboard
+<div align="center">
 
-ReconScope is an academic cybersecurity project. Its purpose is:
+# 🔭 ReconScope
 
-> To collect, organize, correlate, and visualize reconnaissance information about an authorized target using multiple footprinting techniques.
+### Footprinting & Reconnaissance Dashboard
 
-It is a **reconnaissance** platform. It does not exploit systems, bypass authentication, or claim to find vulnerabilities.
+A web-based reconnaissance platform that collects, correlates, and visualizes intelligence about an authorized target using multiple OSINT techniques — all from a clean, interactive dashboard.
 
-> ⚠ Use this application only on systems you own or have explicit permission to assess.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python)](https://python.org)
+[![Flask](https://img.shields.io/badge/Flask-3.x-lightgrey?style=flat-square&logo=flask)](https://flask.palletsprojects.com)
+[![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?style=flat-square&logo=sqlite)](https://sqlite.org)
+[![License](https://img.shields.io/badge/License-Academic-green?style=flat-square)]()
+[![Ethical](https://img.shields.io/badge/Use-Ethically%20%26%20Legally-red?style=flat-square)]()
 
-## Features
+</div>
 
-| Module | Technique | Type |
+---
+
+> ⚠️ **Authorization Required** — Use ReconScope **only** on systems you own or have explicit written permission to assess. Unauthorized reconnaissance is illegal.
+
+---
+
+## 📖 What is ReconScope?
+
+ReconScope is an **academic cybersecurity project** built for footprinting and passive/active reconnaissance. It aggregates data from multiple intelligence sources into one unified dashboard — giving you WHOIS records, DNS maps, detected technologies, Shodan-indexed services, historical Wayback snapshots, and authorized port scan results, all in one place.
+
+It is **not** an exploitation tool. It does not bypass authentication or claim to find vulnerabilities — it collects and organizes publicly available reconnaissance data.
+
+---
+
+## ✨ Features at a Glance
+
+| Module | What it does | Technique |
 |---|---|---|
-| WHOIS | RDAP (HTTPS) with WHOIS fallback; registered-domain lookup | PASSIVE |
-| DNS | A, AAAA, MX, NS, TXT, CNAME via dnspython (no shell) | PASSIVE |
-| Technology | Signature matching on headers, cookies and HTML | PASSIVE* |
-| Shodan | Host lookup against Shodan's index | PASSIVE |
-| Wayback | Wayback Machine CDX API | PASSIVE |
-| Nmap | Fixed TCP connect scan of 25 common ports + version detection | ACTIVE – AUTHORIZATION REQUIRED |
+| 🌐 **WHOIS** | Registrar, registrant, dates, nameservers via RDAP + fallback | `PASSIVE` |
+| 🗺️ **DNS** | A, AAAA, MX, NS, TXT, CNAME records via dnspython | `PASSIVE` |
+| 🧪 **Technology** | Detects frameworks, servers, CMS from headers & HTML | `PASSIVE*` |
+| 🛰️ **Shodan** | Indexed services & open ports from Shodan's database | `PASSIVE` |
+| 📸 **Wayback** | Historical snapshots from the Wayback Machine CDX API | `PASSIVE` |
+| ⚡ **Nmap** | TCP connect scan of 25 common ports + version detection | `ACTIVE ⚠️` |
 
-\*Technology profiling makes one normal HTTP GET to the target's homepage, like a browser visit.
+> \*Technology profiling makes one normal HTTP GET to the target's homepage — equivalent to a browser visit.
 
-Other features: SQLite storage, scan history, module status badges, Chart.js visualizations, action log (audit trail), and HTML / print-to-PDF reports.
+**Additional capabilities:**
+- 📊 Interactive **Chart.js** visualizations (DNS record breakdown, tech categories, Wayback status codes)
+- 🗄️ **SQLite** persistent storage with full scan history
+- 📋 **Audit log** — every action is timestamped and stored
+- 📄 **HTML report export** (print-to-PDF ready)
+- 🔒 Multi-layer safety controls (see [Safety Design](#-safety-design))
 
-## Safety design
+---
 
-- Server-side domain validation (strict regex)
-- No shell execution: Nmap runs via `subprocess.run([...], shell=False)` with a fixed argument list
-- Nmap scans the resolved, validated IP address, never raw user text
-- Active scans require: an allowlisted target, passive recon completed first, and a confirmed authorization checkbox (all checked on the server)
-- API key kept in `.env` (git-ignored), never logged or displayed
-- Parameterised SQL only
-- Rate limiting on recon and Nmap runs
-- Every action is timestamped in the action log
+## 🖥️ Screenshots
 
-## Requirements
+> Dashboard → Run passive recon → View results → Export report
 
-- macOS (tested), Linux or Windows
-- Python 3.10+
-- Nmap (for the active module): https://nmap.org/download.html
-- Optional: a Shodan API key
+```
+ ┌─────────────────────────────────────────────────────┐
+ │  🔭 ReconScope              [History] [Reports]      │
+ ├─────────────────────────────────────────────────────┤
+ │  Target: example.com        IP: 93.184.216.34        │
+ │  Status: ✅ Completed       Progress: ████████ 83%   │
+ ├──────────┬──────────────────────────────────────────┤
+ │  WHOIS ✅ │  DNS ✅ │  Tech ✅ │  Shodan ✅ │ Nmap ⏳ │
+ ├──────────┴──────────────────────────────────────────┤
+ │  [DNS Chart]   [Tech Chart]   [Wayback Timeline]     │
+ └─────────────────────────────────────────────────────┘
+```
 
-## Setup
+---
 
+## 🔒 Safety Design
+
+ReconScope is built with strict safety controls at every layer:
+
+| Control | Detail |
+|---|---|
+| **Domain validation** | Server-side strict regex — rejects IPs, paths, or malformed input |
+| **No shell injection** | Nmap runs via `subprocess.run([...], shell=False)` with a fixed argument list |
+| **IP-based scanning** | Nmap targets the resolved, validated IP — never raw user input |
+| **Allowlist enforcement** | Active scans only run against domains explicitly listed in `ACTIVE_SCAN_ALLOWLIST` |
+| **Passive-first workflow** | Active (Nmap) scans are blocked until passive recon is completed |
+| **Authorization checkbox** | Server-side validation — the UI checkbox alone is never trusted |
+| **Secret management** | API keys stored in `.env` (git-ignored), never logged or displayed |
+| **Parameterized SQL** | All database queries use parameterized statements — no SQL injection |
+| **Rate limiting** | 10s cooldown on passive recon, 30s on Nmap runs |
+| **Audit trail** | Every action is timestamped and stored in the action log |
+
+---
+
+## 🏗️ Project Structure
+
+```
+ReconScope/
+│
+├── app.py                    # Flask routes, workflow orchestration
+├── config.py                 # Environment-based configuration
+├── db.py                     # SQLite schema, queries, storage helpers
+├── requirements.txt          # Python dependencies
+├── .env.example              # Environment variable template
+│
+├── modules/                  # Reconnaissance modules (each is isolated)
+│   ├── common.py             #   Shared result format: {status, message, data}
+│   ├── whois_module.py       #   RDAP + WHOIS fallback
+│   ├── dns_module.py         #   DNS record resolution
+│   ├── technology_module.py  #   Header/HTML technology fingerprinting
+│   ├── shodan_module.py      #   Shodan host lookup
+│   ├── wayback_module.py     #   Wayback Machine CDX API
+│   └── nmap_module.py        #   Active TCP port scan (requires authorization)
+│
+├── templates/                # Jinja2 HTML templates
+│   ├── base.html             #   Shared layout & navigation
+│   ├── index.html            #   Landing / domain input page
+│   ├── dashboard.html        #   Main recon results dashboard
+│   ├── history.html          #   Past scans list
+│   ├── report.html           #   Printable report view
+│   └── report_list.html      #   Report selection page
+│
+├── static/
+│   ├── css/style.css         # Custom styles
+│   └── js/
+│       ├── dashboard.js      # Dashboard interactivity
+│       └── charts.js         # Chart.js visualizations
+│
+├── database/
+│   └── recon.db              # SQLite database (auto-created on first run)
+│
+└── reports/                  # Exported HTML reports (git-ignored)
+```
+
+---
+
+## ⚙️ Requirements
+
+- **Python** 3.10 or higher
+- **Nmap** (only required for the active scan module) → [Download here](https://nmap.org/download.html)
+- **Shodan API key** (optional — free tier works) → [Get one here](https://account.shodan.io/register)
+- macOS, Linux, or Windows
+
+---
+
+## 🚀 Setup & Installation
+
+### 1. Clone the repository
 ```bash
-git clone <your-repo-url> ReconScope
+git clone https://github.com/anantrathi27/ReconScope.git
 cd ReconScope
+```
+
+### 2. Create a virtual environment
+```bash
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate       # macOS / Linux
+# venv\Scripts\activate        # Windows
+```
+
+### 3. Install dependencies
+```bash
 pip install -r requirements.txt
+```
+
+### 4. Configure environment variables
+```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `.env` with your values:
+```env
+# Optional: get a free key at https://account.shodan.io
+SHODAN_API_KEY=your_shodan_key_here
 
-```
-SHODAN_API_KEY=your_key_here
+# Change this to any random string for Flask session security
 SECRET_KEY=change-this-to-a-random-string
+
+# Comma-separated list of domains you are authorized to actively scan
+# Only these domains will be permitted for Nmap scanning
 ACTIVE_SCAN_ALLOWLIST=scanme.nmap.org
 ```
 
-`ACTIVE_SCAN_ALLOWLIST` is a comma-separated list of the only domains Nmap may scan. Add only targets you own or have written permission to test.
-
-## Run
-
+### 5. Run the app
 ```bash
 python app.py
 ```
 
-Open http://127.0.0.1:5001 (port 5001 because macOS AirPlay uses 5000).
+Open your browser at **[http://127.0.0.1:5001](http://127.0.0.1:5001)**
 
-## Usage
+> Port 5001 is used because macOS AirPlay Receiver occupies port 5000.
 
-1. Enter a domain and open the dashboard.
-2. Click **Run Passive Recon**.
-3. Optionally run the authorized **Nmap** scan (allowlisted target, box ticked).
-4. Open **Reports** to view, download as HTML, or print to PDF.
+---
 
-Safe practice target for active scanning: `scanme.nmap.org` (provided by the Nmap project for testing).
-
-## Project structure
+## 🧭 How to Use
 
 ```
-ReconScope/
-├── app.py                 Flask routes and workflow
-├── config.py              Configuration from environment
-├── db.py                  SQLite schema and queries
-├── requirements.txt
-├── .env.example
-├── modules/
-│   ├── common.py          Shared result format
-│   ├── whois_module.py
-│   ├── dns_module.py
-│   ├── technology_module.py
-│   ├── shodan_module.py
-│   ├── wayback_module.py
-│   └── nmap_module.py
-├── templates/             base, index, dashboard, history, report, report_list
-├── static/css, static/js  styles, dashboard.js, charts.js
-├── database/recon.db      created on first run
-└── reports/               exported HTML reports
+Step 1 → Enter a domain on the home page
+Step 2 → Click "Run Passive Recon" on the dashboard
+Step 3 → Review results: WHOIS, DNS, Technologies, Shodan, Wayback
+Step 4 → (Optional) Run authorized Nmap scan for open ports
+Step 5 → Export an HTML report or print to PDF
 ```
 
-## Limitations
+**Safe testing target:** `scanme.nmap.org` — provided by the Nmap project for public testing.
 
-See the project report. In short: technology detection is signature-based, Shodan free plans restrict host lookups, Nmap results cover only 25 ports, and observations are not proof of vulnerability.
+---
 
-## Disclaimer
+## 📊 Workflow Diagram
 
-Reconnaissance observations are not, by themselves, evidence of a security vulnerability. Use responsibly and legally.
+```
+   Enter Domain
+       │
+       ▼
+  Validate Domain ──── ❌ Invalid ──▶ Reject + Flash Error
+       │
+       ✅ Valid
+       │
+       ▼
+  Create Scan (SQLite)
+       │
+       ▼
+  ┌────────────────────────────────┐
+  │       PASSIVE RECON            │
+  │  WHOIS → DNS → Tech            │
+  │  Shodan → Wayback              │
+  │  (modules run in isolation)    │
+  └────────────────────────────────┘
+       │
+       ▼
+  Passive Results → Dashboard + Charts
+       │
+       ▼ (optional, allowlisted targets only)
+  ┌────────────────────────────────┐
+  │       ACTIVE RECON             │
+  │  Authorization checkbox ✅     │
+  │  Allowlist check ✅            │
+  │  Nmap TCP scan (25 ports)      │
+  └────────────────────────────────┘
+       │
+       ▼
+  Export HTML Report / Print to PDF
+```
+
+---
+
+## ⚠️ Limitations
+
+- **Technology detection** is signature-based — it may miss custom or obfuscated stacks
+- **Shodan free tier** restricts the number of host lookups per month
+- **Nmap scan** covers only 25 common ports (not a full port sweep)
+- Reconnaissance observations are **not proof of vulnerability** — they are data collection only
+- Results depend on what is publicly indexed / accessible at scan time
+
+---
+
+## 📜 Disclaimer
+
+> ReconScope is an academic project for educational purposes in cybersecurity. All reconnaissance observations represent publicly available information and are **not**, by themselves, evidence of a security vulnerability.
+>
+> **Always obtain explicit written authorization before scanning any system you do not own.**
+> Unauthorized use of this tool against systems without permission may be illegal in your jurisdiction.
+
+---
+
+<div align="center">
+
+Made with 🛡️ for ethical cybersecurity education
+
+</div>
